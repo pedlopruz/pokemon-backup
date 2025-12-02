@@ -11,6 +11,13 @@ export class PokemonController {
     return this.pokemonService.findAllPokemons();
   }
 
+  @Get('id/:id')
+  async getPokemonById(@Param('id') id: number): Promise<Pokemon> {
+    return this.pokemonService.findPokemonById(id);
+  }
+
+
+
   @Get('name/:name')
   async getPokemonByName(@Param('name') name: string): Promise<Pokemon> {
     return this.pokemonService.findPokemonByName(name);
@@ -79,4 +86,10 @@ export class PokemonController {
   ): Promise<Pokemon> {
     return this.pokemonService.findPokemonsByPokedexNumber(pokedexNumber);
   }
+
+  @Get('empty-builds')
+  async getEmptyBuilds() {
+    return this.pokemonService.findPokemonsWithEmptyBuilds();
+  }
+
 }

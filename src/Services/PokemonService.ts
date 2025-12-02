@@ -13,6 +13,12 @@ export class PokemonService {
   async findAllPokemons(): Promise<Pokemon[]> {
     return this.pokemonRepository.find({ order: { pokedexNumber: 'ASC' } });
   }
+  async findPokemonById(id: number): Promise<Pokemon> {
+    const pokemon = await this.pokemonRepository.findOne({ where: { id } });
+    if (!pokemon) throw new NotFoundException(`No se encontró Pokémon con nombre "${name}"`);
+    return pokemon; 
+
+  }
 
   async findPokemonByName(name: string): Promise<Pokemon> {
     const pokemon = await this.pokemonRepository.findOne({ where: { name } });
@@ -160,4 +166,19 @@ export class PokemonService {
     if (!pokemon) throw new NotFoundException(`No se encontró Pokémon con número de Pokédex ${pokedexNumber}`);
     return pokemon;
   }
+
+  async findPokemonsWithEmptyBuilds(): Promise<string[]> {
+  const allPokemons = await this.pokemonRepository.find({
+    relations: ['builds'],
+  });
+
+  const withoutBuilds = allPokemons
+    .filter(p => !p.builds || p.builds.length === 0)
+    .map(p => p.name);
+
+  return withoutBuilds;
+}
+
+
+  
 }

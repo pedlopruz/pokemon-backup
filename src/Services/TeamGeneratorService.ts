@@ -1,8 +1,10 @@
 // TeamGeneratorService.ts
 import { Injectable } from '@nestjs/common';
+import * as fs from "fs";
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Pokemon } from '../Entities/Pokemon';
+import path from 'path';
 
 @Injectable()
 export class TeamGeneratorService {
@@ -13,7 +15,12 @@ export class TeamGeneratorService {
 
     async generateRandomTeam(): Promise<Pokemon[]> {
         const teamsize = 6;
-        const totalPokemons = await this.pokemonRepository.count();
+        // Contar solo pokemons que sí tienen builds
+        const totalPokemons = await this.pokemonRepository
+            .createQueryBuilder('pokemon')
+            .leftJoin('pokemon.builds', 'builds')
+            .where('builds.id IS NOT NULL')
+            .getCount();
         const randomOffsets = new Set<number>();
         while (randomOffsets.size < teamsize) {
             const randomOffset = Math.floor(Math.random() * totalPokemons);
@@ -23,6 +30,8 @@ export class TeamGeneratorService {
         for (const offset of randomOffsets) {
             const pokemon = await this.pokemonRepository
                 .createQueryBuilder('pokemon')
+                .leftJoinAndSelect("pokemon.builds", "builds")
+                .andWhere('builds.id IS NOT NULL')
                 .skip(offset)
                 .take(1)
                 .getOne();      
@@ -37,8 +46,19 @@ export class TeamGeneratorService {
         if (legendaryCount < 0 || legendaryCount > teamsize) {
             throw new Error(`El número de legendarios debe estar entre 0 y ${teamsize}`);
         }
-        const legendaryPokemons = await this.pokemonRepository.find({ where: { isLegendary: true } });
-        const nonLegendaryPokemons = await this.pokemonRepository.find({ where: { isLegendary: false } });
+        const legendaryPokemons = await this.pokemonRepository
+        .createQueryBuilder('pokemon')
+        .leftJoinAndSelect('pokemon.builds', 'builds')
+        .where('pokemon.isLegendary = true')
+        .andWhere('builds.id IS NOT NULL')
+        .getMany();
+
+        const nonLegendaryPokemons = await this.pokemonRepository
+            .createQueryBuilder('pokemon')
+            .leftJoinAndSelect('pokemon.builds', 'builds')
+            .where('pokemon.isLegendary = false')
+            .andWhere('builds.id IS NOT NULL')
+            .getMany();
         const team: Pokemon[] = [];
 
         const selectedLegendarys = new Set<number>();
@@ -68,6 +88,8 @@ export class TeamGeneratorService {
         const pokemonsByGeneration = await this.pokemonRepository
             .createQueryBuilder('pokemon')
             .where('pokemon.generation IN (:...generations)', { generations: generation })
+            .leftJoinAndSelect("pokemon.builds", "builds")
+            .andWhere('builds.id IS NOT NULL')
             .getMany(); 
         if (pokemonsByGeneration.length < teamsize) {
             throw new Error(`No hay suficientes Pokémon en las generaciones especificadas para formar un equipo de ${teamsize}`);
@@ -89,6 +111,8 @@ export class TeamGeneratorService {
         const pokemonsByTypes = await this.pokemonRepository
             .createQueryBuilder('pokemon')
             .where('pokemon.types IN (:...types)', { types })
+            .leftJoinAndSelect("pokemon.builds", "builds")
+            .andWhere('builds.id IS NOT NULL')
             .getMany(); 
         if (pokemonsByTypes.length < teamsize) {
             throw new Error(`No hay suficientes Pokémon de los tipos especificados para formar un equipo de ${teamsize}`);
@@ -103,5 +127,27 @@ export class TeamGeneratorService {
         }
         return team;
     }
+
+   async generateAnyAndSaveTxt(team: Pokemon[]): Promise<string> {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filePath = path.join(process.cwd(), `team_${timestamp}.txt`);
+
+    let text = `===== EQUIPO GENERADO =====\n\n`;
+
+    for (const poke of team) {
+        if (!poke.builds || poke.builds.length === 0) continue;
+
+        const randomBuild = poke.builds[Math.floor(Math.random() * poke.builds.length)];
+
+        if (randomBuild.buildText) {
+            text += `${randomBuild.buildText}\n\n`;
+        }
+    }
+
+    fs.writeFileSync(filePath, text.trim(), "utf8");
+    return filePath;
+    }
+
+
 
 }

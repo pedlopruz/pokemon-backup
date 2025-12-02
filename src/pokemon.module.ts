@@ -9,10 +9,11 @@ import { TeamGeneratorService } from './Services/TeamGeneratorService';
 import { Pokemon } from './Entities/Pokemon';
 import { SmogonService } from './Services/SmogonService';
 import { PokemonBuild } from './Entities/PokemonBuild';
+import { PokemonBuildService } from './Services/PokemonBuildService';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Pokemon]), TypeOrmModule.forFeature([PokemonBuild])],
-  providers: [PokeApiService, PokemonService, TeamGeneratorService, SmogonService],
+  providers: [PokeApiService, PokemonService, TeamGeneratorService, SmogonService, PokemonBuildService],
   controllers: [PokeApiController, PokemonController, TeamGeneratorController],
 })
 export class PokemonModule {}
