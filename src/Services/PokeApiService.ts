@@ -21,12 +21,14 @@ export class PokeApiService {
     const savedPokemon: Pokemon[] = [];
     const batchSize = 50;
 
+    // --- NUEVO: NO BORRAR, SOLO SI LA BD ESTÁ VACÍA ---
     const existingCount = await this.pokemonRepository.count();
     if (existingCount > 0) {
-      console.log(`Encontrados ${existingCount} Pokémon en la BD. Eliminando...`);
-      await this.pokemonRepository.clear();
-      console.log("Base de datos limpiada.");
+      console.log(`BD ya poblada con ${existingCount} Pokémon. No hago nada.`);
+      return [];
     }
+
+    console.log("BD vacía. Iniciando carga completa de Pokémon...");
 
     const allIds = Array.from({ length: 1025 }, (_, i) => i + 1);
 
@@ -79,4 +81,5 @@ export class PokeApiService {
 
     return savedPokemon;
   }
+
 }
