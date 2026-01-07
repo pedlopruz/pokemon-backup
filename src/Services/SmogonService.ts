@@ -771,46 +771,66 @@ export class SmogonService {
       .replace(/mega$/, '-mega');
   }
 
+  private denormalizeMegaSlugForDex(slug: string): string {
+    return slug
+      .replace('-mega-x', 'megax')
+      .replace('-mega-y', 'megay')
+      .replace('-mega', 'mega');
+  }
+
   async reassignMegaBuilds(): Promise<void> {
-    // 1. Obtener todas las formas mega del Dex
     const megaForms = Dex.species.all()
       .filter(s => s.isMega)
       .map(s => this.normalizeMegaSpeciesId(s.id));
 
     for (const megaSlug of megaForms) {
-      // 2. Buscar la forma mega en la base de datos
-      const megaPokemon = await this.pokemonRepo.findOne({ where: { name: megaSlug } });
-      if (!megaPokemon) continue;
+      const megaPokemon = await this.pokemonRepo.findOne({
+        where: { name: megaSlug },
+        relations: ['builds'],
+      });
+      if (!megaPokemon) {
+        continue
+      }else{
+        megaPokemon.isMega = true;
+        await this.pokemonRepo.save(megaPokemon);
+      }
 
-      // 3. Obtener el nombre base (sin -mega/-mega-x/-mega-y)
+      // 🔥 CAMBIO CLAVE AQUÍ
+      const dexMegaId = this.denormalizeMegaSlugForDex(megaSlug);
+      const megaSpecies = Dex.species.get(dexMegaId);
+
+      const expectedMegaStone = megaSpecies.requiredItem
+        ?.toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+
+      if (!expectedMegaStone) continue;
+
       const baseName = megaSlug.replace(/-mega(-x|-y)?$/, '');
-
-      // 4. Traer Pokémon base con builds
       const basePokemon = await this.pokemonRepo.findOne({
         where: { name: baseName },
         relations: ['builds'],
       });
       if (!basePokemon || !basePokemon.builds?.length) continue;
 
-      // 5. Filtrar builds que tengan la MegaStone correspondiente
       const megaBuilds = basePokemon.builds.filter(build => {
         const match = build.buildText.match(/@ (.+)/);
         if (!match) return false;
 
-        const item = Dex.items.get(match[1].trim());
-        // Solo considera builds con megaStone que corresponde a esta mega
-        return !!item?.megaStone;
+        const itemId = match[1]
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+
+        return itemId === expectedMegaStone;
       });
 
       if (!megaBuilds.length) continue;
 
-      // 6. Reasignar builds al Pokémon mega
       for (const build of megaBuilds) {
         build.pokemon = megaPokemon;
         await this.buildRepo.save(build);
       }
 
-      // 7. Eliminar builds mega del base para evitar duplicados
       await this.buildRepo.delete({
         pokemon: { id: basePokemon.id },
         id: In(megaBuilds.map(b => b.id)),
@@ -818,28 +838,6 @@ export class SmogonService {
     }
   }
 
-
-  
-  private isMegaBuild(buildText: string, pokemonSlug?: string): boolean {
-  // Intentamos extraer el item de la build
-  const match = buildText.match(/@ (.+)/);
-  if (match) {
-    const itemId = match[1]
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, ''); // limpiar caracteres
-    const item = Dex.items.get(itemId);
-    if (item?.megaStone) return true;
-  }
-
-  // Fallback: si el nombre del Pokémon contiene '-mega', asumimos que es mega
-  if (pokemonSlug && /-mega(-x|-y)?$/i.test(pokemonSlug)) return true;
-
-  // Otra verificación opcional: si el buildText menciona explícitamente "Mega"
-  if (/mega/i.test(buildText)) return true;
-
-  return false;
-}
 
 
   /**
