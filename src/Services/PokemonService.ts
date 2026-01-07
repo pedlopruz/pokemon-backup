@@ -176,8 +176,15 @@ export class PokemonService {
     .filter(p => !p.builds || p.builds.length === 0)
     .map(p => p.name);
 
-  return withoutBuilds;
-}
+    return withoutBuilds;
+  }
+
+  async exportarPokemosFormatoJSON(): Promise<Pokemon[]> {
+    return this.pokemonRepository.find({ order: { pokedexNumber: 'ASC' } });
+    
+  }
+
+
 
 
   

@@ -1,6 +1,7 @@
-import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Res } from '@nestjs/common';
 import { PokemonService } from '../Services/PokemonService';
 import { Pokemon } from '../Entities/Pokemon';
+import type { Response } from 'express';
 
 @Controller('pokemon')
 export class PokemonController {
@@ -90,6 +91,19 @@ export class PokemonController {
   @Get('empty-builds')
   async getEmptyBuilds() {
     return this.pokemonService.findPokemonsWithEmptyBuilds();
+  }
+
+  @Get('export/json')
+  async descargarJSON(@Res() res: Response) {
+    const pokemons = await this.pokemonService.exportarPokemosFormatoJSON();
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="pokemons.json"',
+    );
+
+    res.status(200).send(JSON.stringify(pokemons, null, 2));
   }
 
 }
