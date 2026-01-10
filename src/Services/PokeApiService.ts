@@ -17,6 +17,7 @@ export class PokeApiService {
     'bug', 'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy'
   ];
 
+
   constructor(
     @InjectRepository(Pokemon)
     private readonly pokemonRepository: Repository<Pokemon>,
@@ -95,6 +96,17 @@ export class PokeApiService {
 
               const pokemonData = pokemonResponse.data;
 
+              const baseGeneration = parseInt(
+                speciesData.generation.url
+                  .split('/')
+                  .slice(-2, -1)[0]
+              );
+
+              const generation = this.resolveGeneration(
+                baseGeneration,
+                pokemonData.name
+              );
+
               // =============================
               // STATS BASE
               // =============================
@@ -127,13 +139,10 @@ export class PokeApiService {
                   (p: any) => p.pokedex.name === 'national'
                 )?.entry_number,
 
-                name: pokemonData.name, // ponyta-galar
+                name: pokemonData.name,
                 types,
-                generation: parseInt(
-                  speciesData.generation.url
-                    .split('/')
-                    .slice(-2, -1)[0]
-                ),
+                generation: 
+                  generation,
                 isLegendary: speciesData.is_legendary,
                 spriteUrl: pokemonData.sprites.front_default,
 
@@ -193,5 +202,24 @@ export class PokeApiService {
     console.log('Reasignación de Megas completada ✅');
 
     return savedPokemon;
+  }
+
+  private REGIONAL_GENERATION_MAP: Record<string, number> = {
+    alola: 7,
+    galar: 8,
+    hisui: 8,
+    paldea: 9,
+  };
+
+  private resolveGeneration(
+    speciesGeneration: number,
+    pokemonName: string,
+  ): number {
+    for (const region of Object.keys(this.REGIONAL_GENERATION_MAP)) {
+      if (pokemonName.includes(`-${region}`)) {
+        return this.REGIONAL_GENERATION_MAP[region];
+      }
+    }
+    return speciesGeneration;
   }
 }
